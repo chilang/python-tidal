@@ -32,6 +32,9 @@ Example usage
     for track in tracks:
         print(track.name)
 
+    pl = session.user.create_user_playlist(title='Test',description='Test playlist')
+    pl.add_track(55163302)
+
 
 Documentation
 -------------

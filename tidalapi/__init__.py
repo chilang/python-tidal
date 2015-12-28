@@ -84,7 +84,7 @@ class Session(object):
         url = urljoin(self._config.api_location, 'users/%s/subscription' % self.user.id)
         return requests.get(url, params={'sessionId': self.session_id}).ok
 
-    def request(self, method, path, params=None, data=None):
+    def request(self, method, path, params=None, data=None, headers=None):
         request_params = {
             'sessionId': self.session_id,
             'countryCode': self.country_code,
@@ -93,7 +93,7 @@ class Session(object):
         if params:
             request_params.update(params)
         url = urljoin(self._config.api_location, path)
-        r = requests.request(method, url, params=request_params, data=data)
+        r = requests.request(method, url, params=request_params, data=data, headers=headers)
         log.debug("request: %s" % r.request.url)
         r.raise_for_status()
         if r.content:
@@ -250,6 +250,17 @@ def _parse_playlist(json_obj):
     }
     return Playlist(**kwargs)
 
+def _parse_user_playlist(json_obj, session):
+    kwargs = {
+        'id': json_obj['uuid'],
+        'name': json_obj['title'],
+        'description': json_obj['description'],
+        'num_tracks': int(json_obj['numberOfTracks']),
+        'duration': int(json_obj['duration']),
+        'is_public': json_obj['publicPlaylist'],
+        #TODO 'creator': _parse_user(json_obj['creator']),
+    }
+    return UserPlaylist(session, **kwargs)
 
 def _parse_track(json_obj):
     artist = _parse_artist(json_obj['artist'])
@@ -318,6 +329,18 @@ class Favorites(object):
         return [_parse_track(item['item']) for item in r.json()['items']]
 
 
+class UserPlaylist(Playlist):
+    
+    def __init__(self, session, **kwargs):
+        super(UserPlaylist, self).__init__(**kwargs)
+        self._session = session
+
+    def add_track(self, track_id):
+        r = self._session.request('GET', 'playlists/%s' % self.id)
+        pl = _parse_playlist(r.json())
+        etag = r.headers['ETag']
+        return self._session.request('POST', 'playlists/%s/tracks' % self.id, data={'trackIds': track_id, 'toIndex': pl.num_tracks}, headers={'If-None-Match': etag}).ok
+
 class User(object):
 
     favorites = None
@@ -333,3 +356,7 @@ class User(object):
 
     def playlists(self):
         return self._session.get_user_playlists(self.id)
+
+    def create_user_playlist(self, title, description):
+        json_obj = self._session.request('POST', 'users/%s/playlists' % self.id, data={'title':title, 'description':description}).json()
+        return _parse_user_playlist(json_obj, self._session)
