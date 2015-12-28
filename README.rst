@@ -36,6 +36,14 @@ Example usage
     pl.add_track(55163302)
 
 
+Create playlist from `Zet Chilli <http://www.zetchilli.pl/Sprawdz-Co-Gralismy>`_ for a particular date:
+-------------
+
+.. code-block:: bash
+
+    $ python zetchilli.py username password 28-12-2015
+
+
 Documentation
 -------------
 
